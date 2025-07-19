@@ -18,11 +18,13 @@ strategy = st.sidebar.selectbox(
 )
 
 # 🧠 Session init
-if "bank" not in st.session_state:
+if "spin" not in st.session_state:
+    st.session_state.spin = 0
     st.session_state.bank = starting_bank
     st.session_state.cold_streaks = {num: 0 for num in kaprekar}
     st.session_state.history = []
     st.session_state.bank_history = [starting_bank]
+    st.session_state.spin = st.number_input("Enter Spin Result (0–36)", min_value=0, max_value=36, step=1, value=st.session_state.spin)
 
 def get_neighbors(num, n=1):
     idx = wheel.index(num)
