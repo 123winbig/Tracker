@@ -2,7 +2,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from collections import Counter
 
-# 🎯 Strategy settings
+# 🎯 Loop numbers and wheel layout
 kaprekar = [9, 18, 27, 36]
 wheel = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
          10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]
@@ -17,23 +17,23 @@ strategy = st.sidebar.selectbox(
      "Strategy 3: Bet after 5 cold loop spins, 2NB hit"]
 )
 
-# 🧠 Initialize session state
+# 🧠 Session init
 if "bank" not in st.session_state:
     st.session_state.bank = starting_bank
     st.session_state.cold_streaks = {num: 0 for num in kaprekar}
     st.session_state.history = []
-    st.session_state.bank_history = []
+    st.session_state.bank_history = [starting_bank]
 
 def get_neighbors(num, n=1):
     idx = wheel.index(num)
-    return [wheel[(idx - i) % len(wheel)] for i in range(1, n+1)] + \
-           [wheel[(idx + i) % len(wheel)] for i in range(1, n+1)]
+    return [wheel[(idx - i) % len(wheel)] for i in range(1, n + 1)] + \
+           [wheel[(idx + i) % len(wheel)] for i in range(1, n + 1)]
 
 def reset_session():
     st.session_state.bank = starting_bank
     st.session_state.cold_streaks = {num: 0 for num in kaprekar}
     st.session_state.history = []
-    st.session_state.bank_history = []
+    st.session_state.bank_history = [starting_bank]
     st.success(f"🔄 Reset complete! Starting bank: €{starting_bank}")
 
 def update(spin):
@@ -50,24 +50,18 @@ def update(spin):
         neighbors_1 = get_neighbors(loop, n=1)
         neighbors_2 = get_neighbors(loop, n=2)
 
-        # Reset cold streak if loop hit
         if loop_hit:
             st.session_state.cold_streaks[loop] = 0
 
         should_bet = False
         targets = []
 
-        # Strategy 1
         if strategy.startswith("Strategy 1") and st.session_state.cold_streaks[loop] >= 10:
             targets = [loop] + neighbors_1
             should_bet = True
-
-        # Strategy 2
         elif strategy.startswith("Strategy 2") and st.session_state.cold_streaks[loop] >= 8 and spin in neighbors_1:
             targets = [loop] + neighbors_1
             should_bet = True
-
-        # Strategy 3
         elif strategy.startswith("Strategy 3") and st.session_state.cold_streaks[loop] >= 5 and spin in neighbors_2 and spin not in neighbors_1:
             targets = [loop] + neighbors_2
             should_bet = True
@@ -82,10 +76,9 @@ def update(spin):
 
     st.session_state.bank -= total_bet
     st.session_state.bank_history.append(st.session_state.bank)
-
     return instructions, total_bet, win
 
-# 🎰 UI
+# 🖥️ Main layout
 st.set_page_config(page_title="Roulette Command Center", layout="centered")
 st.title("🎰 Unified Roulette Tracker")
 
@@ -103,7 +96,7 @@ if st.button("Run Spin"):
     st.write(f"✅ Win: {'Yes' if win else 'No'}")
 
 if st.session_state.bank_history:
-    st.subheader("📈 Bank Chart")
+    st.subheader("📈 Bank Balance Over Spins")
     fig, ax = plt.subplots()
     ax.plot(st.session_state.bank_history, marker='o', color='green')
     ax.set_xlabel("Spin #")
@@ -118,7 +111,6 @@ if st.session_state.history:
     st.write(f"Highest Bank: €{max(st.session_state.bank_history)}")
     st.write(f"Lowest Bank: €{min(st.session_state.bank_history)}")
 
-# 🔥 Hot / ❄️ Cold tracker
 if len(st.session_state.history) >= 50:
     st.subheader("🔥 Hot & ❄️ Cold Numbers (Last 50 Spins)")
     recent = st.session_state.history[-50:]
