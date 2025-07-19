@@ -2,14 +2,20 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from collections import Counter
 
-# 🎯 Loop numbers and wheel layout
+# 🔁 Loop numbers and wheel layout
 kaprekar = [9, 18, 27, 36]
 wheel = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
          10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]
 
 # 🧠 Sidebar controls
 st.sidebar.header("🔧 Tracker Settings")
-starting_bank = st.sidebar.number_input("💰 Starting Bank", min_value=100, max_value=10000, value=300, step=50)
+if "bank_input" not in st.session_state:
+    st.session_state.bank_input = 300
+
+st.session_state.bank_input = st.sidebar.number_input(
+    "💰 Starting Bank", min_value=100, max_value=10000, value=st.session_state.bank_input, step=50
+)
+
 strategy = st.sidebar.selectbox(
     "🎯 Choose Strategy",
     ["Strategy 1: Bet after 10 cold loop spins (1NB)",
@@ -17,14 +23,14 @@ strategy = st.sidebar.selectbox(
      "Strategy 3: Bet after 5 cold loop spins, 2NB hit"]
 )
 
-# 🧠 Session init
-if "spin" not in st.session_state:
-    st.session_state.spin = 0
-    st.session_state.bank = starting_bank
+# 🧠 Session state setup
+if "bank" not in st.session_state:
+    st.session_state.bank = st.session_state.bank_input
     st.session_state.cold_streaks = {num: 0 for num in kaprekar}
     st.session_state.history = []
-    st.session_state.bank_history = [starting_bank]
-    st.session_state.spin = st.number_input("Enter Spin Result (0–36)", min_value=0, max_value=36, step=1, value=st.session_state.spin)
+    st.session_state.bank_history = [st.session_state.bank]
+if "spin" not in st.session_state:
+    st.session_state.spin = 0
 
 def get_neighbors(num, n=1):
     idx = wheel.index(num)
@@ -32,11 +38,11 @@ def get_neighbors(num, n=1):
            [wheel[(idx + i) % len(wheel)] for i in range(1, n + 1)]
 
 def reset_session():
-    st.session_state.bank = starting_bank
+    st.session_state.bank = st.session_state.bank_input
     st.session_state.cold_streaks = {num: 0 for num in kaprekar}
     st.session_state.history = []
-    st.session_state.bank_history = [starting_bank]
-    st.success(f"🔄 Reset complete! Starting bank: €{starting_bank}")
+    st.session_state.bank_history = [st.session_state.bank]
+    st.success(f"🔄 Reset complete! Starting bank: €{st.session_state.bank_input}")
 
 def update(spin):
     st.session_state.history.append(spin)
@@ -47,10 +53,9 @@ def update(spin):
     for loop in kaprekar:
         st.session_state.cold_streaks[loop] += 1
         bet_size = 1
-
         loop_hit = spin == loop
-        neighbors_1 = get_neighbors(loop, n=1)
-        neighbors_2 = get_neighbors(loop, n=2)
+        nb1 = get_neighbors(loop, n=1)
+        nb2 = get_neighbors(loop, n=2)
 
         if loop_hit:
             st.session_state.cold_streaks[loop] = 0
@@ -59,13 +64,13 @@ def update(spin):
         targets = []
 
         if strategy.startswith("Strategy 1") and st.session_state.cold_streaks[loop] >= 10:
-            targets = [loop] + neighbors_1
+            targets = [loop] + nb1
             should_bet = True
-        elif strategy.startswith("Strategy 2") and st.session_state.cold_streaks[loop] >= 8 and spin in neighbors_1:
-            targets = [loop] + neighbors_1
+        elif strategy.startswith("Strategy 2") and st.session_state.cold_streaks[loop] >= 8 and spin in nb1:
+            targets = [loop] + nb1
             should_bet = True
-        elif strategy.startswith("Strategy 3") and st.session_state.cold_streaks[loop] >= 5 and spin in neighbors_2 and spin not in neighbors_1:
-            targets = [loop] + neighbors_2
+        elif strategy.startswith("Strategy 3") and st.session_state.cold_streaks[loop] >= 5 and spin in nb2 and spin not in nb1:
+            targets = [loop] + nb2
             should_bet = True
 
         if should_bet:
@@ -80,16 +85,17 @@ def update(spin):
     st.session_state.bank_history.append(st.session_state.bank)
     return instructions, total_bet, win
 
-# 🖥️ Main layout
+# 🖥️ Layout
 st.set_page_config(page_title="Roulette Command Center", layout="centered")
 st.title("🎰 Unified Roulette Tracker")
 
 if st.button("🔄 Reset Session"):
     reset_session()
 
-spin = st.number_input("Enter Spin Result (0–36)", min_value=0, max_value=36, step=1)
+st.session_state.spin = st.number_input("Enter Spin Result (0–36)", min_value=0, max_value=36, step=1, value=st.session_state.spin)
+
 if st.button("Run Spin"):
-    instructions, total_bet, win = update(spin)
+    instructions, total_bet, win = update(st.session_state.spin)
     st.subheader("📌 Betting Instructions")
     for row in instructions:
         st.write(f"✅ Bet | Loop {row[0]} | Cold Streak: {row[1]} | Targets: {row[3]}")
